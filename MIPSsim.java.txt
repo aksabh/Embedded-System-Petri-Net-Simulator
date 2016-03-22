@@ -1,0 +1,472 @@
+/* On my honor, I have neither given nor received unauthorized aid on this
+assignment */
+
+import java.io.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.NoSuchElementException;
+import java.util.Queue;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.TreeMap;
+public class MIPSsim {
+
+	public static int counter;
+	public static String ADBstr[]={""};
+	public static int[] RGF = new int[16];
+
+	public static int[] DAM = new int[16];
+	
+	
+	static String stringExploit(String str){
+		str = str.replace('{', '<');
+		str = str.replace('}', '>');
+		str = str.replace(' ', '<');
+		str = str.replace(',', '>');
+		str = str.replace('=', ',');
+		str = str.replaceAll("><",">,<");
+		return str;
+	}
+
+	
+	
+	static String printQueueREB(Queue<String[]> queuelist){
+		Iterator<String []> iter = queuelist.iterator();
+		String ret="";
+		while(iter.hasNext()) {
+			String [] current = iter.next();
+			ret += "<"+current[0]+","+current[1]+">,";
+		}
+		if(ret.length()>0)
+			return ret.substring(0, ret.length()-1);
+		return ret;
+	}
+	
+	static void printState(ArrayList<String> INM,ArrayList<String> INB,ArrayList<String> AIB,ArrayList<String> SIB,ArrayList<String> PRB,ArrayList<String> ADB,ArrayList<String> REB,int register1[],int memory1[],PrintWriter writer,int i)throws IOException{
+		String mycount = "STEP " + counter + ":";
+
+		writer.println(mycount);
+
+
+		printOutput("INM", INM, writer);
+		printOutput("INB", INB, writer);
+		printOutput("AIB", AIB, writer);
+		printOutput("SIB", SIB, writer);
+		printOutput("PRB", PRB, writer);
+		printOutput("ADB", ADB, writer);
+		printOutput("REB", REB, writer);
+		printOutputState("RGF", register1, writer, true);
+		printOutputState("DAM", memory1, writer,true);
+
+		//writer.println();
+
+		counter += 1;
+
+	}
+	
+
+	static void InbToAibSib(ArrayList<String> INB,ArrayList<String> AIB,ArrayList<String> SIB){
+		
+		String INB_value = INB.get(0);
+		INB.remove(0);
+		String tempsub = INB_value.substring(1, INB_value.length() - 1);
+		String[] split_INB = tempsub.split(",");
+		if(split_INB[0].equals("ST")){
+			SIB.add(INB_value);
+		}else{
+			AIB.add(INB_value);
+		}
+		}
+	
+	
+
+	static void RebToRgf(ArrayList<String> REB,int[] RGF){
+		String REBtemp = REB.get(0);	
+
+		REB.remove(0);
+		String tempsub = REBtemp.substring(1, REBtemp.length() - 1);
+		String[] split_REB = tempsub.split(",");
+		int i = Integer.parseInt
+			(split_REB[0].substring(1, split_REB[0].length()));
+		RGF[i] = Integer.parseInt(split_REB[1]);
+	}
+	
+	
+	
+
+	
+	static void PrbToReb(ArrayList<String> PRB,ArrayList<String> REB){
+	//	String LIBstr[] = SIB.remove();
+		//System.out.println(LIBstr[1]+""+LIBstr[2]);
+		//System.out.println(LIBstr[0]);
+		//System.out.println(LIBstr[1]);
+		//System.out.println(LIBstr[2]);
+		//System.out.println(LIBstr[3]);
+		//System.out.println(LIBstr[4]);
+		//String REBstr[] = ADB.remove();
+	//	String ADBstr[] = {LIBstr[2],""+(Integer.parseInt(LIBstr[3])+Integer.parseInt(LIBstr[4]))};
+		//System.out.println(ADBstr[0]+""+ADBstr[1]);
+		String PRB_value = PRB.get(0);
+		PRB.remove(0);
+		String tempsub = PRB_value.substring(1, PRB_value.length() - 1);
+		String[] split_PRB = tempsub.split(",");
+		int val1 = Integer.parseInt(split_PRB[2]);
+
+		int val2 = Integer.parseInt(split_PRB[3]);
+		String PRBtoREB = "<" + split_PRB[1] + "," + (val1 * val2) + ">";
+		REB.add(PRBtoREB);
+	}
+	
+	static void AibToRebPrb(ArrayList<String> AIB,ArrayList<String> REB,ArrayList<String> PRB){
+		String AIB_value = AIB.get(0);
+
+		AIB.remove(0);
+
+		String tempsub = AIB_value.substring(1, AIB_value.length() - 1);
+		String[] split_AIB = tempsub.split(",");
+		int val1 = Integer.parseInt(split_AIB[2]);
+		int val2 = Integer.parseInt(split_AIB[3]);
+		int finalval = 0;
+
+		if(split_AIB[0].equals("MUL")){
+
+			PRB.add(AIB_value);
+
+		}else{
+
+			if(split_AIB[0].equals("ADD")){
+
+				finalval = val1 + val2;
+
+			}else if(split_AIB[0].equals("SUB")){
+
+				finalval = val1 - val2;
+
+			}
+
+			String AIBtoREB = "<" + split_AIB[1] + "," + finalval + ">";
+
+			REB.add(AIBtoREB);
+
+		}
+
+	}
+	
+	
+	
+	static void AdbToDam(ArrayList<String> ADB,int DAM[],int RGF[]){
+		String ADB_value = ADB.get(0);
+
+		ADB.remove(0);
+
+		String tempsub = ADB_value.substring(1, ADB_value.length() - 1);
+
+		String[] split_ADB = tempsub.split(",");
+
+		int i = Integer.parseInt(split_ADB[0].substring
+
+				(1, split_ADB[0].length()));
+
+		int j = Integer.parseInt(split_ADB[1]);
+
+		DAM[j] = RGF[i];
+	}
+	
+	
+	
+	static void SibToAdb(ArrayList<String> SIB,ArrayList<String> ADB)
+	{
+	
+		String SIB_value = SIB.get(0);
+
+		SIB.remove(0);
+		String tempsub = SIB_value.substring(1, SIB_value.length() - 1);
+		String[] split_SIB = tempsub.split(",");
+		int val1 = Integer.parseInt(split_SIB[2]);
+
+		int val2 = Integer.parseInt(split_SIB[3]);
+		String SIBtoADB = "<" + split_SIB[1] + "," + (val1 + val2) + ">";
+		ADB.add(SIBtoADB);
+	}
+
+	
+	static void InmtoInb(ArrayList<String> INM,ArrayList<String> INB,int RGF[]){
+		String INM_value = INM.get(0);
+		boolean regready = true;
+		String tempsub = INM_value.substring(1, INM_value.length() - 1);
+		String[] split_INM = tempsub.split(",");
+		int value1 = Integer.MIN_VALUE;
+
+		int value2 = Integer.MIN_VALUE;
+		boolean isRegister1 = false;
+		boolean isRegister2 = false;
+		if(split_INM[2].charAt(0) == 'R'){
+
+			isRegister1 = true;
+			int i = Integer.parseInt(split_INM[2].substring(1, split_INM[2].length()));
+			value1 = RGF[i];
+
+		}
+		if(split_INM[3].charAt(0) == 'R'){
+			isRegister2 = true;
+			int j = Integer.parseInt(split_INM[3].substring(1, split_INM[3].length()));
+			value2 = RGF[j];
+		}
+		if(value1 == Integer.MIN_VALUE || value2 == Integer.MIN_VALUE)
+		{
+			regready = false;
+		}
+		String reg1value = "";
+		String reg2value = "";
+		if(isRegister1){
+			reg1value = String.valueOf(value1);
+		}
+		else{
+			reg1value = split_INM[2];
+		}
+		if(isRegister2){
+
+			reg2value = String.valueOf(value2);
+		}
+		else{
+			reg2value = split_INM[3];
+		}
+		String INMtoINB = "<" + split_INM[0] + "," + split_INM[1] + "," + reg1value + "," + reg2value + ">";
+			INB.add(INMtoINB);
+		     INM.remove(0);
+	}
+	
+	private static void printOutputState(String string, int[] obj2, PrintWriter wt, boolean b) throws IOException {
+
+		// TODO Auto-generated method stub
+
+		String str = string + ":";
+		String str2 = "";
+		if(string.equals("RGF")){
+			for(int i = 0; i < obj2.length; i++){
+				if(obj2[i] != Integer.MIN_VALUE){
+					str2 += "<R" + i + "," + obj2[i] + ">,";
+				}
+			}
+			if(str2.length() > 0){
+				str = str + str2.substring(0, str2.length() - 1);
+			}
+
+		}else if(string.equals("DAM")){
+
+			for(int i = 0; i < obj2.length; i++){
+
+				if(obj2[i] != Integer.MIN_VALUE){
+
+					str2 += "<" + i + "," + obj2[i] + ">,";
+
+				}
+
+			}
+
+			if(str2.length() > 0){
+
+				str = str + str2.substring(0, str2.length() - 1);
+
+			}
+
+		}
+
+		wt.println(str);
+		str = "";
+		str2 = "";
+
+	}
+
+
+
+
+	private static void printOutput(String string, ArrayList<String> obj, PrintWriter wt) throws IOException {
+
+		// TODO Auto-generated method stub
+
+		String str = string + ":";
+		String str2 = "";
+		for(int i = 0; i < obj.size(); i++){
+			str2 += obj.get(i) + ",";
+		}
+		if(str2.length() > 0){
+			str = str + str2.substring(0, str2.length() - 1);
+		}
+		wt.println(str);
+		str = "";
+		str2 = "";
+	}
+	
+	public static void main(String[] args)throws IOException {
+		ArrayList<String> INM = new ArrayList<String>();
+		ArrayList<String> INB = new ArrayList<String>();
+		ArrayList<String> AIB = new ArrayList<String>();
+		ArrayList<String> SIB = new ArrayList<String>();
+		ArrayList<String> PRB = new ArrayList<String>();
+		ArrayList<String> ADB = new ArrayList<String>();
+		ArrayList<String> REB = new ArrayList<String>();
+
+		int[] RGF = new int[16];
+
+		int[] DAM = new int[16];
+
+		 
+		//int i=0;
+		
+		for(int j = 0; j < 16 ; j++){
+
+			RGF[j] = Integer.MIN_VALUE;
+
+			DAM[j] = Integer.MIN_VALUE;
+
+		}
+		
+		
+        try {
+            BufferedReader br = new BufferedReader(new FileReader("instructions.txt"));
+            BufferedReader br1 = new BufferedReader(new FileReader("registers.txt"));
+            BufferedReader br2 = new BufferedReader(new FileReader("datamemory.txt"));
+            PrintWriter writer = new PrintWriter("simulation.txt", "UTF-8");
+
+            String read_file = br1.readLine();
+
+    		while(read_file != null){
+
+    			String readregister = read_file.substring(1, read_file.length() - 1);
+
+    			String[] splitregister = readregister.split(",");
+
+    			int j = Integer.parseInt(splitregister[0].substring(1, splitregister[0].length()));
+
+    			RGF[j] = Integer.parseInt(splitregister[1]);
+
+    			read_file = br1.readLine();
+
+    		}
+           
+            
+    		String read_value = br2.readLine();
+
+    		while(read_value != null){
+
+    			String readmemory = read_value.substring
+
+    										(1, read_value.length() - 1);
+
+    			String[] splitmemory = readmemory.split(",");
+
+    			int j = Integer.parseInt(splitmemory[0]);
+
+    			DAM[j] = Integer.parseInt(splitmemory[1]);
+
+    			read_value = br2.readLine();
+
+    		}
+    		
+    		
+    		String instread = br.readLine();
+
+    		while(instread != null){
+
+    			INM.add(instread);
+
+    			instread = br.readLine();
+
+    		}
+            
+            
+            String arr[]; 
+            br.close();            
+            br1.close();            
+            br2.close();            
+
+           // writer.println("STEP 0:");
+            counter  = 0;
+            printState(INM,INB,AIB,SIB,PRB,ADB,REB,RGF,DAM,writer,0);
+            
+            while(ADB.size()>0 || AIB.size()>0 || INB.size()>0 || INM.size()>0 || PRB.size()>0 ||REB.size()>0 ||SIB.size()>0)           
+            {
+            	
+            	//i++;
+            	
+            	//writer.println("STEP "+ i +":");
+                
+            	
+            	if(REB.size() != 0){
+            		
+                	RebToRgf(REB,RGF);
+                	//System.out.println("true REB"+i);
+                }
+            	
+            	
+            	if(PRB.size() != 0)
+            	{
+            		PrbToReb(PRB,REB);
+            		//System.out.println("true PRB"+i);
+            		//String abc[] = AIB.remove();
+            		//PRB.add(abc);
+            	}
+            	
+            	
+            	if(AIB.size() != 0)
+                {
+                	AibToRebPrb(AIB,REB,PRB);
+                	//System.out.println("true asu"+i);
+                }
+            	
+            	
+            	if(ADB.size() != 0)
+            	{
+            	    AdbToDam(ADB,DAM,RGF);
+            		//System.out.println("true ADB"+i);
+            	}
+            	
+            	
+                	
+                if(SIB.size() != 0)
+                {
+                	
+                   SibToAdb(SIB,ADB);
+                   
+                  //System.out.println("true SIB"+i);
+                }
+                	
+                	
+                	//	PRB.add(AIB.toString()); 
+                		//libAdd(PRB,ADB); 	
+                	
+                	if(INB.size() != 0)
+                {
+                	InbToAibSib(INB,AIB,SIB);
+                	//System.out.println("true classification"+i);	
+                }
+                	
+                	
+                	if(INM.size()!= 0)
+                {
+                	InmtoInb(INM,INB,RGF);
+                	//System.out.println("true decode"+i);
+                }
+                	//if(counter<17)
+                	writer.println();
+                	printState(INM,INB,AIB,SIB,PRB,ADB,REB,RGF,DAM,writer,0);
+                	
+                	//System.out.println("true print state"+i);	
+            }
+            writer.close();
+        }
+        catch(FileNotFoundException ex) {
+            System.out.println(
+                "Unable to open file");                
+        }
+        catch(IOException ex) {
+            System.out.println(
+                "Error reading file");                   
+        }
+        catch(NoSuchElementException exception) {
+    	}
+	}
+}
